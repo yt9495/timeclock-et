@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#f1f5f9;
+    --sub:#94a3b8; --in:#22c55e; --out:#ef4444; --acc:#38bdf8;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',
+                   'Apple SD Gothic Neo',Roboto,sans-serif;
+       display:flex;justify-content:center;padding:16px}
+  .wrap{width:100%;max-width:460px}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .brand{font-size:13px;color:var(--sub);letter-spacing:.5px}
+  .lang{display:flex;background:var(--card);border:1px solid var(--line);
+        border-radius:999px;overflow:hidden}
+  .lang button{background:none;border:0;color:var(--sub);padding:6px 14px;
+               font-size:12px;font-weight:700;cursor:pointer}
+  .lang button.on{background:var(--acc);color:#0f172a}
+
+  .clock{background:var(--card);border:1px solid var(--line);border-radius:18px;
+         padding:22px 18px;text-align:center;margin-bottom:14px}
+  .tzlabel{font-size:11px;color:var(--sub);letter-spacing:1.5px;text-transform:uppercase}
+  .time{font-size:48px;font-weight:800;letter-spacing:1px;
+        font-variant-numeric:tabular-nums;margin:6px 0 2px}
+  .date{font-size:14px;color:var(--sub)}
+  .sync{font-size:10px;color:#475569;margin-top:8px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+        padding:18px;margin-bottom:14px}
+  label{display:block;font-size:12px;color:var(--sub);margin-bottom:7px;font-weight:600}
+  select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);
+         background:#0f172a;color:var(--txt);font-size:17px;appearance:none}
+
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  .btn{border:0;border-radius:14px;padding:22px 8px;font-size:18px;font-weight:800;
+       color:#fff;cursor:pointer;transition:.15s;line-height:1.35}
+  .btn small{display:block;font-size:11px;font-weight:600;opacity:.85;margin-top:3px}
+  .btn:active{transform:scale(.97)}
+  .btn:disabled{opacity:.32;cursor:not-allowed}
+  .bin{background:var(--in)}
+  .bout{background:var(--out)}
+
+  .status{display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:12px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#64748b}
+  .dot.on{background:var(--in);box-shadow:0 0 0 4px rgba(34,197,94,.2)}
+  .rows{font-size:13px;color:var(--sub);line-height:1.9}
+  .rows b{color:var(--txt);font-variant-numeric:tabular-nums}
+
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(120%);
+         background:#f1f5f9;color:#0f172a;padding:14px 22px;border-radius:14px;
+         font-size:15px;font-weight:700;box-shadow:0 12px 30px rgba(0,0,0,.45);
+         transition:transform .3s;z-index:99;max-width:90vw;text-align:center}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.err{background:#fecaca;color:#7f1d1d}
+
+  .note{font-size:11px;color:#475569;text-align:center;line-height:1.7;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand" id="brand">TIME CLOCK</div>
+    <div class="lang">
+      <button id="btnKo" onclick="setLang('ko')">한국어</button>
+      <button id="btnEn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+
+  <div class="clock">
+    <div class="tzlabel" id="tzLabel">US EASTERN TIME</div>
+    <div class="time" id="clock">--:--:--</div>
+    <div class="date" id="today">—</div>
+    <div class="sync" id="sync">…</div>
+  </div>
+
+  <div class="card">
+    <label id="lblWho">이름을 선택하세요</label>
+    <select id="who" onchange="onPick()"><option value="">…</option></select>
+
+    <div class="btns">
+      <button class="btn bin"  id="bIn"  onclick="doPunch('IN')"  disabled>
+        <span id="tIn">출근</span><small id="sIn">Clock In</small>
+      </button>
+      <button class="btn bout" id="bOut" onclick="doPunch('OUT')" disabled>
+        <span id="tOut">퇴근</span><small id="sOut">Clock Out</small>
+      </button>
+    </div>
+  </div>
+
+  <div class="card" id="statusCard" style="display:none">
+    <div class="status"><span class="dot" id="dot"></span><span id="stateText">—</span></div>
+    <div class="rows">
+      <div><span id="lFirst">최초 출근</span> : <b id="vFirst">-</b></div>
+      <div><span id="lLast">최종 퇴근</span> : <b id="vLast">-</b></div>
+      <div><span id="lWorked">오늘 근무</span> : <b id="vWorked">-</b></div>
+    </div>
+  </div>
+
+  <div class="note" id="note"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ------------ 다국어 / i18n ------------ */
+var I18N = {
+  ko: {
+    brand:'출퇴근 기록', tz:'미국 동부 표준시 (ET)', who:'이름을 선택하세요',
+    in:'출근', out:'퇴근', inSub:'Clock In', outSub:'Clock Out',
+    first:'최초 출근', last:'최종 퇴근', worked:'오늘 근무',
+    working:'근무 중', done:'퇴근 완료', notyet:'출근 전',
+    sync:'서버 시간 동기화됨 · 기기 시계와 무관',
+    note:'시각은 Google 서버에서 자동 기록됩니다. 직접 입력하거나 수정할 수 없습니다.',
+    okIn:'출근 기록 완료', okOut:'퇴근 기록 완료',
+    eAlready:'이미 출근 상태입니다', eNotIn:'출근 기록이 없습니다',
+    eEmp:'등록되지 않은 직원입니다', eBusy:'잠시 후 다시 시도해 주세요',
+    eNet:'연결 오류. 다시 시도해 주세요', loading:'처리 중…',
+    days:['일','월','화','수','목','금','토']
+  },
+  en: {
+    brand:'TIME CLOCK', tz:'US Eastern Time (ET)', who:'Select your name',
+    in:'Clock In', out:'Clock Out', inSub:'출근', outSub:'퇴근',
+    first:'First in', last:'Last out', worked:'Worked today',
+    working:'Working', done:'Clocked out', notyet:'Not clocked in',
+    sync:'Synced with server clock · device time ignored',
+    note:'Timestamps are recorded by Google servers and cannot be typed or edited.',
+    okIn:'Clocked in', okOut:'Clocked out',
+    eAlready:'You are already clocked in', eNotIn:'No open clock-in found',
+    eEmp:'Employee not registered', eBusy:'Server busy — please retry',
+    eNet:'Connection error. Please retry', loading:'Working…',
+    days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  }
+};
+var LANG = 'ko';
+
+function store(k, v){ try{ if(v===undefined) return localStorage.getItem(k);
+                           localStorage.setItem(k,v); }catch(e){ return null; } }
+
+function setLang(l){
+  LANG = l; store('tc_lang', l);
+  var t = I18N[l];
+  document.getElementById('btnKo').className = (l==='ko'?'on':'');
+  document.getElementById('btnEn').className = (l==='en'?'on':'');
+  document.documentElement.lang = l;
+  document.getElementById('brand').textContent  = t.brand;
+  document.getElementById('tzLabel').textContent= t.tz;
+  document.getElementById('lblWho').textContent = t.who;
+  document.getElementById('tIn').textContent    = t.in;
+  document.getElementById('sIn').textContent    = t.inSub;
+  document.getElementById('tOut').textContent   = t.out;
+  document.getElementById('sOut').textContent   = t.outSub;
+  document.getElementById('lFirst').textContent = t.first;
+  document.getElementById('lLast').textContent  = t.last;
+  document.getElementById('lWorked').textContent= t.worked;
+  document.getElementById('sync').textContent   = t.sync;
+  document.getElementById('note').textContent   = t.note;
+  if(lastStatus) renderStatus(lastStatus); else tick();
+}
+
+/* ------------ 서버 시계 동기화 / server clock sync ------------ */
+var offset = 0, tzName = 'ET', lastStatus = null;
+
+function syncClock(){
+  var t0 = Date.now();
+  google.script.run.withSuccessHandler(function(s){
+    offset = s.epoch - (t0 + (Date.now()-t0)/2);
+    tzName = s.tz;
+  }).getServerTime();
+}
+
+function tick(){
+  var now = new Date(Date.now() + offset);
+  var p = {timeZone:'America/New_York', hour12:false,
+           hour:'2-digit', minute:'2-digit', second:'2-digit'};
+  var d = {timeZone:'America/New_York', year:'numeric', month:'2-digit',
+           day:'2-digit', weekday:'short'};
+  try{
+    document.getElementById('clock').textContent =
+      new Intl.DateTimeFormat('en-GB', p).format(now);
+    document.getElementById('today').textContent =
+      new Intl.DateTimeFormat(LANG==='ko'?'ko-KR':'en-US', d).format(now)
+      + '  ·  ' + tzName;
+  }catch(e){}
+}
+
+/* ------------ 직원 목록 / employees ------------ */
+function loadEmployees(){
+  google.script.run.withSuccessHandler(function(list){
+    var sel = document.getElementById('who');
+    sel.innerHTML = '<option value="">—</option>';
+    list.forEach(function(e){
+      var o = document.createElement('option');
+      o.value = e.name;
+      o.textContent = e.name + (e.en && e.en!==e.name ? ' / ' + e.en : '');
+      sel.appendChild(o);
+    });
+    var saved = store('tc_name');
+    if(saved){ sel.value = saved; if(sel.value) onPick(); }
+  }).getEmployees();
+}
+
+function onPick(){
+  var n = document.getElementById('who').value;
+  store('tc_name', n);
+  if(!n){ document.getElementById('statusCard').style.display='none';
+          document.getElementById('bIn').disabled=true;
+          document.getElementById('bOut').disabled=true; return; }
+  google.script.run.withSuccessHandler(renderStatus).getMyStatus(n);
+}
+
+function renderStatus(st){
+  lastStatus = st;
+  var t = I18N[LANG];
+  document.getElementById('statusCard').style.display = 'block';
+  document.getElementById('dot').className = 'dot' + (st.working ? ' on' : '');
+  document.getElementById('stateText').textContent =
+    st.working ? t.working : (st.firstIn ? t.done : t.notyet);
+  document.getElementById('vFirst').textContent  = st.firstIn || '-';
+  document.getElementById('vLast').textContent   = st.lastOut || '-';
+  document.getElementById('vWorked').textContent = st.workedText || '-';
+  document.getElementById('bIn').disabled  = st.working;
+  document.getElementById('bOut').disabled = !st.working;
+}
+
+/* ------------ 기록 / punch ------------ */
+var busy = false;
+function doPunch(type){
+  if(busy) return;
+  var n = document.getElementById('who').value;
+  if(!n) return;
+  busy = true;
+  document.getElementById('bIn').disabled = true;
+  document.getElementById('bOut').disabled = true;
+  toast(I18N[LANG].loading);
+
+  google.script.run
+    .withSuccessHandler(function(r){
+      busy = false;
+      var t = I18N[LANG];
+      if(r.ok){
+        toast((r.type==='IN'?t.okIn:t.okOut) + '  ' + r.time + ' ' + r.tz);
+        renderStatus(r.status);
+      }else{
+        var m = {ALREADY_IN:t.eAlready, NOT_IN:t.eNotIn,
+                 NO_EMP:t.eEmp, BUSY:t.eBusy}[r.code] || t.eNet;
+        toast(m, true);
+        if(r.status) renderStatus(r.status); else onPick();
+      }
+      syncClock();
+    })
+    .withFailureHandler(function(){ busy=false; toast(I18N[LANG].eNet,true); onPick(); })
+    .punch(n, type);
+}
+
+var toastTimer;
+function toast(msg, isErr){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.className='toast'; }, 3200);
+}
+
+/* ------------ 시작 / boot ------------ */
+setLang(store('tc_lang') || 'ko');
+syncClock();
+loadEmployees();
+setInterval(tick, 1000);
+setInterval(syncClock, 60000);
+tick();
+</script>
+</body>
+</html>

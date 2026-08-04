@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--line:#334155;--txt:#f1f5f9;
+        --sub:#94a3b8;--in:#22c55e;--out:#ef4444;--acc:#38bdf8;--warn:#f59e0b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);padding:18px;
+       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',
+                   'Apple SD Gothic Neo',Roboto,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px}
+  h1{font-size:19px;margin:0}
+  .lang{display:flex;background:var(--card);border:1px solid var(--line);
+        border-radius:999px;overflow:hidden}
+  .lang button{background:none;border:0;color:var(--sub);padding:6px 14px;
+               font-size:12px;font-weight:700;cursor:pointer}
+  .lang button.on{background:var(--acc);color:#0f172a}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+        padding:18px;margin-bottom:16px}
+  h2{font-size:14px;margin:0 0 14px;color:var(--acc);letter-spacing:.4px}
+  label{display:block;font-size:11px;color:var(--sub);margin-bottom:5px;font-weight:600}
+  input,select{padding:10px;border-radius:10px;border:1px solid var(--line);
+               background:#0f172a;color:var(--txt);font-size:14px;width:100%}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row>div{flex:1;min-width:130px}
+  button.act{background:var(--acc);color:#0f172a;border:0;border-radius:10px;
+             padding:11px 20px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}
+  button.ghost{background:transparent;color:var(--sub);border:1px solid var(--line)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--sub);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  td.num{font-variant-numeric:tabular-nums}
+  .tag{padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800}
+  .t-work{background:rgba(34,197,94,.16);color:var(--in)}
+  .t-done{background:rgba(56,189,248,.16);color:var(--acc)}
+  .t-abs{background:rgba(148,163,184,.16);color:var(--sub)}
+  .late{color:var(--warn);font-weight:700}
+  .scroll{overflow-x:auto}
+  .muted{color:var(--sub);font-size:12px}
+  #login{max-width:330px;margin:60px auto}
+  .hide{display:none}
+  .err{color:#fca5a5;font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <h1 id="h1">관리자 대시보드</h1>
+    <div class="lang">
+      <button id="btnKo" onclick="setLang('ko')">한국어</button>
+      <button id="btnEn" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+
+  <!-- 로그인 -->
+  <div class="card" id="login">
+    <h2 id="lgTitle">관리자 로그인</h2>
+    <label id="lgPin">PIN</label>
+    <input type="password" id="pin" onkeydown="if(event.key==='Enter')login()">
+    <div style="margin-top:12px"><button class="act" id="lgBtn" onclick="login()">로그인</button></div>
+    <div class="err hide" id="lgErr"></div>
+  </div>
+
+  <div id="app" class="hide">
+
+    <!-- 오늘 현황 -->
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <h2 style="flex:1;margin:0" id="hToday">오늘 현황</h2>
+        <button class="act ghost" id="bRefresh" onclick="loadToday()">새로고침</button>
+      </div>
+      <div class="muted" id="todayMeta">—</div>
+      <div class="scroll"><table id="tToday"></table></div>
+    </div>
+
+    <!-- 기간 집계 -->
+    <div class="card">
+      <h2 id="hRange">기간별 집계</h2>
+      <div class="row">
+        <div><label id="lFrom">시작일</label><input type="date" id="from"></div>
+        <div><label id="lTo">종료일</label><input type="date" id="to"></div>
+        <div><label id="lEmp">직원</label><select id="empSel"></select></div>
+        <div style="flex:0"><button class="act" id="bRun" onclick="loadRange()">조회</button></div>
+      </div>
+      <div style="margin-top:16px" class="scroll"><table id="tTotals"></table></div>
+      <div style="margin-top:18px" class="scroll"><table id="tDaily"></table></div>
+    </div>
+
+    <!-- 직원 관리 -->
+    <div class="card">
+      <h2 id="hEmp">직원 관리</h2>
+      <div class="row">
+        <div><label id="lName">이름 (한글)</label><input id="nName" placeholder="홍길동"></div>
+        <div><label id="lEn">영문 이름</label><input id="nEn" placeholder="Gildong Hong"></div>
+        <div><label id="lId">사번</label><input id="nId" placeholder="E010"></div>
+        <div style="flex:0"><button class="act" id="bAdd" onclick="addEmp()">추가</button></div>
+      </div>
+      <div class="muted" id="empMsg" style="margin-top:10px"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var I18N = {
+  ko:{
+    h1:'관리자 대시보드', lgTitle:'관리자 로그인', lgBtn:'로그인',
+    lgErr:'PIN이 올바르지 않습니다',
+    hToday:'오늘 현황', refresh:'새로고침',
+    hRange:'기간별 집계', from:'시작일', to:'종료일', emp:'직원', all:'전체', run:'조회',
+    hEmp:'직원 관리', name:'이름 (한글)', en:'영문 이름', id:'사번', add:'추가',
+    thName:'이름', thState:'상태', thIn:'출근', thOut:'퇴근', thWork:'근무', thLate:'지각',
+    thDate:'날짜', thDay:'요일', thHours:'근무시간', thOT:'초과', thDays:'근무일',
+    thLateDays:'지각일수', thMiss:'미퇴근', min:'분', missing:'미퇴근',
+    working:'근무중', done:'퇴근', absent:'미출근',
+    added:'추가되었습니다', dup:'이미 등록된 이름입니다', empty:'이름을 입력하세요',
+    nodata:'데이터가 없습니다', totals:'직원별 합계', daily:'일자별 상세',
+    server:'서버 시각'
+  },
+  en:{
+    h1:'Admin Dashboard', lgTitle:'Admin Login', lgBtn:'Sign in',
+    lgErr:'Incorrect PIN',
+    hToday:"Today's Board", refresh:'Refresh',
+    hRange:'Range Summary', from:'From', to:'To', emp:'Employee', all:'All', run:'Run',
+    hEmp:'Employees', name:'Name (KO)', en:'Name (EN)', id:'Emp ID', add:'Add',
+    thName:'Name', thState:'Status', thIn:'In', thOut:'Out', thWork:'Worked', thLate:'Late',
+    thDate:'Date', thDay:'Day', thHours:'Hours', thOT:'OT', thDays:'Days',
+    thLateDays:'Late days', thMiss:'No out', min:'min', missing:'no clock-out',
+    working:'Working', done:'Done', absent:'Absent',
+    added:'Employee added', dup:'Name already exists', empty:'Name required',
+    nodata:'No data', totals:'Per-employee totals', daily:'Daily detail',
+    server:'Server time'
+  }
+};
+var LANG='ko', PIN='', lastToday=null, lastRange=null;
+
+function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k);
+                          localStorage.setItem(k,v);}catch(e){return null;} }
+function $(id){ return document.getElementById(id); }
+
+function setLang(l){
+  LANG=l; store('tc_lang',l);
+  var t=I18N[l];
+  $('btnKo').className = (l==='ko'?'on':'');
+  $('btnEn').className = (l==='en'?'on':'');
+  document.documentElement.lang=l;
+  $('h1').textContent=t.h1; $('lgTitle').textContent=t.lgTitle;
+  $('lgBtn').textContent=t.lgBtn;
+  $('hToday').textContent=t.hToday; $('bRefresh').textContent=t.refresh;
+  $('hRange').textContent=t.hRange; $('lFrom').textContent=t.from;
+  $('lTo').textContent=t.to; $('lEmp').textContent=t.emp; $('bRun').textContent=t.run;
+  $('hEmp').textContent=t.hEmp; $('lName').textContent=t.name;
+  $('lEn').textContent=t.en; $('lId').textContent=t.id; $('bAdd').textContent=t.add;
+  if(lastToday) renderToday(lastToday);
+  if(lastRange) renderRange(lastRange);
+  if(PIN) fillEmpSelect();
+}
+
+/* ---------- login ---------- */
+function login(){
+  var p = $('pin').value;
+  google.script.run.withSuccessHandler(function(r){
+    if(r.ok){
+      PIN = p; store('tc_pin', p);
+      $('login').className='card hide'; $('app').className='';
+      var d=new Date(), iso=function(x){return x.toISOString().slice(0,10);};
+      $('to').value   = iso(d);
+      $('from').value = iso(new Date(d.getTime()-13*864e5));
+      fillEmpSelect(); loadToday(); loadRange();
+    }else{
+      $('lgErr').textContent = I18N[LANG].lgErr;
+      $('lgErr').className='err';
+    }
+  }).adminLogin(p);
+}
+
+function fillEmpSelect(){
+  google.script.run.withSuccessHandler(function(list){
+    var s=$('empSel'), cur=s.value;
+    s.innerHTML='<option value="">'+I18N[LANG].all+'</option>';
+    list.forEach(function(e){
+      var o=document.createElement('option');
+      o.value=e.name; o.textContent=e.name+(e.en&&e.en!==e.name?' / '+e.en:'');
+      s.appendChild(o);
+    });
+    s.value=cur;
+  }).getEmployees();
+}
+
+/* ---------- today ---------- */
+function loadToday(){
+  google.script.run.withSuccessHandler(function(r){
+    if(!r.ok) return; lastToday=r; renderToday(r);
+  }).adminToday(PIN);
+}
+
+function renderToday(r){
+  var t=I18N[LANG];
+  $('todayMeta').textContent = t.server+' : '+r.date+' '+r.time+' '+r.tz;
+  var h='<tr><th>'+t.thName+'</th><th>'+t.thState+'</th><th>'+t.thIn+'</th><th>'+
+        t.thOut+'</th><th>'+t.thWork+'</th><th>'+t.thLate+'</th></tr>';
+  r.board.forEach(function(b){
+    var cls={WORKING:'t-work',DONE:'t-done',ABSENT:'t-abs'}[b.state];
+    var lab={WORKING:t.working,DONE:t.done,ABSENT:t.absent}[b.state];
+    h+='<tr><td>'+(LANG==='ko'?b.name:(b.en||b.name))+'</td>'+
+       '<td><span class="tag '+cls+'">'+lab+'</span></td>'+
+       '<td class="num">'+b.first+'</td><td class="num">'+b.last+'</td>'+
+       '<td class="num">'+b.hm+'</td>'+
+       '<td class="num'+(b.late>0?' late':'')+'">'+(b.late>0?b.late+t.min:'-')+'</td></tr>';
+  });
+  $('tToday').innerHTML=h;
+}
+
+/* ---------- range ---------- */
+function loadRange(){
+  google.script.run.withSuccessHandler(function(r){
+    if(!r.ok) return; lastRange=r; renderRange(r);
+  }).adminRange(PIN, $('from').value, $('to').value, $('empSel').value);
+}
+
+function renderRange(r){
+  var t=I18N[LANG];
+  var h='<tr><th colspan="6">'+t.totals+'</th></tr>'+
+        '<tr><th>'+t.thName+'</th><th>'+t.thDays+'</th><th>'+t.thHours+'</th><th>'+
+        t.thOT+'</th><th>'+t.thLateDays+'</th><th>'+t.thMiss+'</th></tr>';
+  if(!r.totals.length) h+='<tr><td colspan="6" class="muted">'+t.nodata+'</td></tr>';
+  r.totals.forEach(function(x){
+    h+='<tr><td>'+x.name+'</td><td class="num">'+x.days+'</td>'+
+       '<td class="num">'+x.hours.toFixed(2)+'</td>'+
+       '<td class="num">'+x.over.toFixed(2)+'</td>'+
+       '<td class="num'+(x.late>0?' late':'')+'">'+x.late+'</td>'+
+       '<td class="num'+(x.missing>0?' late':'')+'">'+x.missing+'</td></tr>';
+  });
+  $('tTotals').innerHTML=h;
+
+  var d='<tr><th colspan="7">'+t.daily+'</th></tr>'+
+        '<tr><th>'+t.thDate+'</th><th>'+t.thDay+'</th><th>'+t.thName+'</th><th>'+
+        t.thIn+'</th><th>'+t.thOut+'</th><th>'+t.thHours+'</th><th>'+t.thLate+'</th></tr>';
+  if(!r.daily.length) d+='<tr><td colspan="7" class="muted">'+t.nodata+'</td></tr>';
+  r.daily.forEach(function(x){
+    d+='<tr><td class="num">'+x.date+'</td><td>'+x.day+'</td><td>'+x.name+'</td>'+
+       '<td class="num">'+x.first+'</td>'+
+       '<td class="num'+(x.missing?' late':'')+'">'+(x.missing?t.missing:x.last)+'</td>'+
+       '<td class="num">'+x.hm+'</td>'+
+       '<td class="num'+(x.late>0?' late':'')+'">'+(x.late>0?x.late+t.min:'-')+'</td></tr>';
+  });
+  $('tDaily').innerHTML=d;
+}
+
+/* ---------- add employee ---------- */
+function addEmp(){
+  var t=I18N[LANG];
+  var n=$('nName').value.trim();
+  if(!n){ $('empMsg').textContent=t.empty; return; }
+  google.script.run.withSuccessHandler(function(r){
+    $('empMsg').textContent = r.ok ? t.added : (r.code==='DUP'?t.dup:t.empty);
+    if(r.ok){ $('nName').value=''; $('nEn').value=''; $('nId').value='';
+              fillEmpSelect(); loadToday(); }
+  }).adminAddEmployee(PIN, n, $('nEn').value.trim(), $('nId').value.trim());
+}
+
+/* ---------- boot ---------- */
+setLang(store('tc_lang')||'ko');
+var sp=store('tc_pin');
+if(sp){ $('pin').value=sp; login(); }
+setInterval(function(){ if(PIN) loadToday(); }, 60000);
+</script>
+</body>
+</html>
