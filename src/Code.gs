@@ -51,14 +51,17 @@ function setup() {
   let log = ss.getSheetByName(SHEET_LOG);
   if (!log) {
     log = ss.insertSheet(SHEET_LOG);
-    log.getRange('A1:I1').setValues([[
+    log.getRange('A1:J1').setValues([[
       '기록ID (Record ID)', '날짜 ET (Date)', '요일 (Day)', '이름 (Name)',
       '구분 (Type)', '시각 ET (Time)', 'ISO 타임스탬프 (ISO)',
-      'UTC epoch(ms)', '비고 (Note)'
+      'UTC epoch(ms)', '비고 (Note)', 'IP (참고용 / advisory)'
     ]]);
+    log.getRange('B2:B').setNumberFormat('@');   // 날짜를 텍스트로 고정 / keep date as text
+    log.getRange('F2:F').setNumberFormat('@');   // 시각을 텍스트로 고정 / keep time as text
+    log.getRange('J2:J').setNumberFormat('@');   // IP도 텍스트로 / keep IP as text
     log.setFrozenRows(1);
-    log.getRange('A1:I1').setFontWeight('bold').setBackground('#e8eaed');
-    log.setColumnWidths(1, 9, 150);
+    log.getRange('A1:J1').setFontWeight('bold').setBackground('#e8eaed');
+    log.setColumnWidths(1, 10, 150);
     log.protect().setDescription('출퇴근 원본 기록 / Raw punch log').setWarningOnly(true);
   }
 
@@ -138,14 +141,23 @@ function getServerTime() {
 
 function logSheet_() { return ss_().getSheetByName(SHEET_LOG); }
 
+/**
+ * 시트가 날짜/시각으로 자동 변환해 버린 셀을 원래 문자열로 되돌립니다.
+ * Sheets coerces '2026-08-04' and '17:34:21' into Date objects on write —
+ * normalise them back so string comparison works.
+ */
+function cellStr_(v, pattern) {
+  return v instanceof Date ? Utilities.formatDate(v, TZ, pattern) : String(v).trim();
+}
+
 function readLog_() {
   const sh = logSheet_();
   if (!sh || sh.getLastRow() < 2) return [];
-  const v = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues();
   return v.map(r => ({
-    id: r[0], date: String(r[1]), day: r[2], name: String(r[3]),
-    type: String(r[4]).toUpperCase(), time: String(r[5]),
-    iso: r[6], epoch: Number(r[7]) || 0, note: r[8]
+    id: r[0], date: cellStr_(r[1], 'yyyy-MM-dd'), day: r[2], name: String(r[3]).trim(),
+    type: String(r[4]).toUpperCase().trim(), time: cellStr_(r[5], 'HH:mm:ss'),
+    iso: r[6], epoch: Number(r[7]) || 0, note: r[8], ip: String(r[9] || '').trim()
   })).filter(r => r.name);
 }
 
@@ -197,12 +209,23 @@ function getMyStatus(name) {
 }
 
 /**
+ * 클라이언트가 보고한 IP를 안전한 형태로만 통과시킵니다.
+ * IP는 브라우저가 알려주는 값이라 위조 가능 — 참고용 기록일 뿐 신뢰하지 마세요.
+ * Client-reported IP: advisory only, spoofable. Sanitised before storage.
+ */
+function safeIp_(ip) {
+  const s = String(ip || '').trim();
+  return /^[0-9a-fA-F:.]{3,45}$/.test(s) ? s : '';
+}
+
+/**
  * 출근/퇴근 기록. 시각은 전적으로 서버에서 생성됩니다.
  * Punch in/out. The timestamp is created on the server only.
  * @param {string} name
  * @param {string} type 'IN' | 'OUT'
+ * @param {string} [ip] 브라우저가 조회한 공인 IP (선택) / public IP reported by the browser
  */
-function punch(name, type) {
+function punch(name, type, ip) {
   type = String(type).toUpperCase();
   if (type !== 'IN' && type !== 'OUT') return { ok: false, code: 'BAD_TYPE' };
   if (!isValidEmployee_(name))         return { ok: false, code: 'NO_EMP' };
@@ -219,7 +242,7 @@ function punch(name, type) {
     const sh = logSheet_();
     const id = Utilities.getUuid().slice(0, 8).toUpperCase();
 
-    sh.appendRow([id, s.date, s.day, name, type, s.time, s.iso, s.epoch, '']);
+    sh.appendRow([id, s.date, s.day, name, type, s.time, s.iso, s.epoch, '', safeIp_(ip)]);
     SpreadsheetApp.flush();
 
     return { ok: true, code: 'OK', type: type, time: s.time, date: s.date,

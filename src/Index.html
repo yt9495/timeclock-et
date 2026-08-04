@@ -164,6 +164,28 @@ function setLang(l){
   if(lastStatus) renderStatus(lastStatus); else tick();
 }
 
+/* ------------ 공인 IP 조회 / public IP lookup ------------
+   기록용 참고 정보입니다. 조회에 실패해도 출퇴근은 정상 동작해야 하므로
+   절대 punch 를 막지 않습니다.
+   Advisory only. Must never block a punch — failures are swallowed. */
+var myIp = '';
+
+function loadIp(){
+  var urls = ['https://api.ipify.org?format=json',
+              'https://api64.ipify.org?format=json'];
+  var i = 0;
+  (function next(){
+    if(i >= urls.length) return;
+    var u = urls[i++];
+    try{
+      fetch(u, {cache:'no-store'})
+        .then(function(r){ return r.json(); })
+        .then(function(j){ if(j && j.ip) myIp = String(j.ip); else next(); })
+        .catch(next);
+    }catch(e){ next(); }
+  })();
+}
+
 /* ------------ 서버 시계 동기화 / server clock sync ------------ */
 var offset = 0, tzName = 'ET', lastStatus = null;
 
@@ -256,7 +278,7 @@ function doPunch(type){
       syncClock();
     })
     .withFailureHandler(function(){ busy=false; toast(I18N[LANG].eNet,true); onPick(); })
-    .punch(n, type);
+    .punch(n, type, myIp);
 }
 
 var toastTimer;
@@ -270,6 +292,7 @@ function toast(msg, isErr){
 
 /* ------------ 시작 / boot ------------ */
 setLang(store('tc_lang') || 'ko');
+loadIp();
 syncClock();
 loadEmployees();
 setInterval(tick, 1000);
