@@ -67,6 +67,7 @@ function setup() {
   if (!cfg) {
     cfg = ss.insertSheet(SHEET_CFG);
     cfg.getRange('A1:C1').setValues([['키 (Key)', '값 (Value)', '설명 (Description)']]);
+    cfg.getRange('B2:B20').setNumberFormat('@');   // 값은 항상 텍스트로 / keep values as text
     cfg.getRange('A2:C6').setValues([
       ['ADMIN_PIN',      '1234',  '관리자 대시보드 PIN / Admin dashboard PIN'],
       ['WORK_START',     '09:00', '기준 출근 시각 (지각 판정) / Scheduled start time'],
@@ -108,8 +109,10 @@ function getConfig_() {
   const out = {};
   if (!sh) return out;
   const v = sh.getDataRange().getValues();
+  // 시트가 '09:00'을 시간(Date)으로 자동 변환하는 경우가 있어 HH:mm 문자열로 복원합니다.
+  // Sheets may coerce '09:00' into a Date — normalise it back to HH:mm.
   for (let i = 1; i < v.length; i++) {
-    if (v[i][0]) out[String(v[i][0]).trim()] = String(v[i][1]).trim();
+    if (v[i][0]) out[String(v[i][0]).trim()] = String(v[i][1] instanceof Date ? Utilities.formatDate(v[i][1], TZ, 'HH:mm') : v[i][1]).trim();
   }
   return out;
 }
