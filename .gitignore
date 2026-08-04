@@ -1,0 +1,27 @@
+# ── 절대 커밋 금지 / Never commit ────────────────────────────
+# 스크립트 ID·배포 URL 포함 / contains script ID & deployment URL
+.clasp.json
+.clasprc.json
+deployment-url.txt
+*.deployment
+secrets.*
+.env
+.env.*
+
+# 실제 직원 데이터 / real employee data
+employees.csv
+employees.*.csv
+TimeLog*.csv
+Report_*.csv
+*.xlsx
+
+# ── 일반 / General ──────────────────────────────────────────
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
