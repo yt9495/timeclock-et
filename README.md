@@ -148,4 +148,4 @@ Recordkeeping requirements vary by state. This project is provided as general in
 
 ## 라이선스 / License
 
-© 2025–2026 Young Tai Kang. All rights reserved. Licensed to JNF AM LLC for internal use. — [LICENSE](LICENSE) 참고
+© 2025–2026 Young Tai Kang. All rights reserved. Unauthorized use, copying, modification, or distribution without the written permission of Young Tai Kang is prohibited. — [LICENSE](LICENSE) 참고
