@@ -10,7 +10,7 @@ Built entirely on Google Sheets + Apps Script — no server, no cost.
   <img alt="Apps Script" src="https://img.shields.io/badge/Google%20Apps%20Script-4285F4?logo=google&logoColor=white">
   <img alt="Timezone" src="https://img.shields.io/badge/timezone-America%2FNew__York-informational">
   <img alt="i18n" src="https://img.shields.io/badge/i18n-한국어%20%2F%20English-success">
-  <img alt="License" src="https://img.shields.io/badge/license-MIT-lightgrey">
+  <img alt="License" src="https://img.shields.io/badge/license-Proprietary-lightgrey">
 </p>
 
 ---
@@ -148,4 +148,4 @@ Recordkeeping requirements vary by state. This project is provided as general in
 
 ## 라이선스 / License
 
-MIT — [LICENSE](LICENSE) 참고
+© 2025–2026 Young Tai Kang. All rights reserved. Licensed to JNF AM LLC for internal use. — [LICENSE](LICENSE) 참고

@@ -1,3 +1,7 @@
+/*
+ * © 2025–2026 Young Tai Kang. All rights reserved.
+ * Licensed to JNF AM LLC for internal use.
+ */
 /*************************************************************
  * 출퇴근 기록 시스템 / Time Clock System
  * -----------------------------------------------------------
